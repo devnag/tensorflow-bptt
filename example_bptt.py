@@ -85,9 +85,9 @@ def build_lstm_layer(bp, depth_type, layer_index, raw_x, width):
     return [c, h]
 
 
-def build_single_lstm_frame(bp, depth_type):
+def build_dual_lstm_frame(bp, depth_type):
     """
-    Build a single-layer LSTM followed by standard sigmoid/linear mapping
+    Build a dual-layer LSTM followed by standard sigmoid/linear mapping
     """
     global init, input_dimensions, output_dimensions, batch_size, lstm_width
 
@@ -117,7 +117,7 @@ def palindrome(step):
 
 # Generate unrolled+shallow graphs
 bp = bptt.BPTT()
-graphs = bp.generate_graphs(build_single_lstm_frame, unroll_depth)
+graphs = bp.generate_graphs(build_dual_lstm_frame, unroll_depth)
 
 # Define loss and clip gradients
 error_vec = [[o - p] for [i, p, o] in graphs[bp.DEEP]]
