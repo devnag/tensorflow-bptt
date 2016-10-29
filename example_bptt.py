@@ -31,9 +31,10 @@ epsilon = 1e-3
 momentum = 0.4
 gradient_clipping = 2.0
 unroll_depth = 4
+max_reset_loops = 20
 
 # Training parameters
-num_training_loops = 10000
+num_training_loops = 3000
 num_inference_loops = 100
 num_inference_warmup_loops = 1900
 
@@ -115,53 +116,73 @@ def palindrome(step):
     return (5.0 - abs(float(step % 10) - 5.0)) / 10.0
 
 
-# Generate unrolled+shallow graphs
-bp = bptt.BPTT()
-graphs = bp.generate_graphs(build_dual_lstm_frame, unroll_depth)
+bp = None
+sess = None
+graphs = None
+done = False
 
-# Define loss and clip gradients
-error_vec = [[o - p] for [i, p, o] in graphs[bp.DEEP]]
-loss = tf.reduce_mean(tf.square(error_vec))
-optimizer = tf.train.AdamOptimizer(learning_rate, beta1, beta2, epsilon)
-grads = optimizer.compute_gradients(loss)
-clipped_grads = [(tf.clip_by_value(grad, -gradient_clipping, gradient_clipping), var) for grad, var in grads]
-optimizer.apply_gradients(clipped_grads)
-train = optimizer.minimize(loss)
+# Loop until you get out of a local minimum or you hit max reset loops
+for reset_loop_index in xrange(max_reset_loops):
 
-# Boilerplate initialization
-init_op = tf.initialize_all_variables()
-sess = tf.Session()
-sess.run(init_op)
+    # Clean any previous loops
+    if reset_loop_index > 0:
+        tf.reset_default_graph()
 
-print("=== Training the unrolled model ===")
+    # Generate unrolled+shallow graphs
+    bp = bptt.BPTT()
+    graphs = bp.generate_graphs(build_dual_lstm_frame, unroll_depth)
 
-for step in xrange(num_training_loops):
-    # 1.) Generate the dictionary of I/O placeholder data
-    start_index = step * unroll_depth
-    in_data = np.array([palindrome(x) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
-    out_data = np.array([palindrome(x+1) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
+    # Define loss and clip gradients
+    error_vec = [[o - p] for [i, p, o] in graphs[bp.DEEP]]
+    loss = tf.reduce_mean(tf.square(error_vec))
+    optimizer = tf.train.AdamOptimizer(learning_rate, beta1, beta2, epsilon)
+    grads = optimizer.compute_gradients(loss)
+    clipped_grads = [(tf.clip_by_value(grad, -gradient_clipping, gradient_clipping), var) for grad, var in grads]
+    optimizer.apply_gradients(clipped_grads)
+    train = optimizer.minimize(loss)
 
-    # 2a.) Generate the working state to send in, along with data to insert into unrolled placeholders
-    frame_dict = bp.generate_feed_dict(bp.DEEP, [in_data, out_data], 2)
+    # Boilerplate initialization
+    init_op = tf.initialize_all_variables()
+    sess = tf.Session()
+    sess.run(init_op)
+    reset = False
 
-    # 2b.) Define the output (training/loss) that we'd like to see (optional)
-    session_out = [train, loss] + [o for [i, p, o] in graphs[bp.DEEP]]   # calculated output
+    print("=== Training the unrolled model (reset loop %s) ===" % (reset_loop_index))
 
-    # 3.) Define state variables to pull out as well.
-    state_vars = bp.generate_output_definitions(bp.DEEP)
-    session_out.extend(state_vars)
+    for step in xrange(num_training_loops):
+        # 1.) Generate the dictionary of I/O placeholder data
+        start_index = step * unroll_depth
+        in_data = np.array([palindrome(x) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
+        out_data = np.array([palindrome(x+1) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
 
-    # 4.) Execute the graph
-    results = sess.run(session_out, feed_dict=frame_dict)
+        # 2a.) Generate the working state to send in, along with data to insert into unrolled placeholders
+        frame_dict = bp.generate_feed_dict(bp.DEEP, [in_data, out_data], 2)
 
-    # 5.) Extract the state for next training loop; need to make sure we have right part of result array
-    bp.save_output_state(bp.DEEP, results[-len(state_vars):])  # for simple RNN
+        # 2b.) Define the output (training/loss) that we'd like to see (optional)
+        session_out = [train, loss] + [o for [i, p, o] in graphs[bp.DEEP]]   # calculated output
 
-    # 6.) Show training progress
-    if (step % 100) == 0:
-        print "Loss: %s => %s (output: %s)" % (step, results[1], [str(x) for x in results[2:-len(state_vars)]])
-        sys.stdout.flush()
+        # 3.) Define state variables to pull out as well.
+        state_vars = bp.generate_output_definitions(bp.DEEP)
+        session_out.extend(state_vars)
 
+        # 4.) Execute the graph
+        results = sess.run(session_out, feed_dict=frame_dict)
+
+        # 5.) Extract the state for next training loop; need to make sure we have right part of result array
+        bp.save_output_state(bp.DEEP, results[-len(state_vars):])  # for simple RNN
+
+        # 6.) Show training progress; reset graph if loss is stagnant.
+        if (step % 100) == 0:
+            print "Loss: %s => %s (output: %s)" % (step, results[1], [str(x) for x in results[2:-len(state_vars)]])
+            sys.stdout.flush()
+
+            if step >= 1000 and (results[1] > 0.01):
+                print("\nResetting; loss (%s) is stagnating after 1k rounds...\n" % (results[1]))
+                reset = True
+                break  # To next reset loop
+
+    if not reset:
+        break
 
 print("=== Evaluating on shallow model ===")
 
