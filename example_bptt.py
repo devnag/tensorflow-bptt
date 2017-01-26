@@ -142,7 +142,7 @@ for reset_loop_index in xrange(max_reset_loops):
     train = optimizer.minimize(loss)
 
     # Boilerplate initialization
-    init_op = tf.initialize_all_variables()
+    init_op = tf.global_variables_initializer()
     sess = tf.Session()
     sess.run(init_op)
     reset = False
