@@ -79,9 +79,9 @@ def build_lstm_layer(bp, depth_type, layer_index, raw_x, width):
         # Build graph - looks almost like Alex Graves wrote it!
         i = tf.sigmoid(tf.matmul(W_xi, x) + tf.matmul(W_hi, h_past) + tf.matmul(W_ci, c_past) + b_i)
         f = tf.sigmoid(tf.matmul(W_xf, x) + tf.matmul(W_hf, h_past) + tf.matmul(W_cf, c_past) + b_f)
-        c = bp.name_variable(c_name, tf.mul(f, c_past) + tf.mul(i, tf.tanh(tf.matmul(W_xc, x) + tf.matmul(W_hc, h_past) + b_c)))
+        c = bp.name_variable(c_name, tf.multiply(f, c_past) + tf.multiply(i, tf.tanh(tf.matmul(W_xc, x) + tf.matmul(W_hc, h_past) + b_c)))
         o = tf.sigmoid(tf.matmul(W_xo, x) + tf.matmul(W_ho, h_past) + tf.matmul(W_co, c) + b_o)
-        h = bp.name_variable(h_name, tf.mul(o, tf.tanh(c)))
+        h = bp.name_variable(h_name, tf.multiply(o, tf.tanh(c)))
 
     return [c, h]
 
