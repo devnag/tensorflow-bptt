@@ -130,7 +130,7 @@ class BPTT(object):
         :return: A list of the graphs, connected by variables.
         """
         frames = []
-        for loop in xrange(num_loops):
+        for loop in range(num_loops):
             # Scoping on top of each depth
             # We need 'False' for the first time and 'True' for all others
             with tf.variable_scope(self.LOOP_SCOPE, reuse=(loop != 0)):
@@ -156,8 +156,8 @@ class BPTT(object):
             d[self.placeholders[depth_type][variable_name]] = self.state[depth_type][variable_name]
 
         # User-provided data to unroll/insert into the placeholders
-        for frame_index in xrange(len(frames)):       # Unroll index
-            for var_index in xrange(num_settable):    # Variable index
+        for frame_index in range(len(frames)):       # Unroll index
+            for var_index in range(num_settable):    # Variable index
                 frame_var = frames[frame_index][var_index]
                 d[frame_var] = np.reshape(data_array[var_index][frame_index],
                                           frame_var.get_shape())
@@ -192,7 +192,7 @@ class BPTT(object):
         sorted_names = sorted(d.keys())
         assert len(sorted_names) == len(arr), \
             "Sent in the wrong number of variables (%s) to update state (%s)" % (len(arr), len(sorted_names))
-        for variable_index in xrange(len(sorted_names)):
+        for variable_index in range(len(sorted_names)):
             variable_name = sorted_names[variable_index]
             # Saved for next time.
             self.state[depth_type][variable_name] = arr[variable_index]

@@ -97,7 +97,7 @@ def build_dual_lstm_frame(bp, depth_type):
     output_placeholder = tf.placeholder(tf.float32, shape=(output_dimensions, batch_size))
 
     last_output = input_placeholder
-    for layer_index in xrange(2):
+    for layer_index in range(2):
         [_, h] = build_lstm_layer(bp, depth_type, layer_index, last_output, lstm_width)
         last_output = h
 
@@ -122,7 +122,7 @@ graphs = None
 done = False
 
 # Loop until you get out of a local minimum or you hit max reset loops
-for reset_loop_index in xrange(max_reset_loops):
+for reset_loop_index in range(max_reset_loops):
 
     # Clean any previous loops
     if reset_loop_index > 0:
@@ -149,11 +149,11 @@ for reset_loop_index in xrange(max_reset_loops):
 
     print("=== Training the unrolled model (reset loop %s) ===" % (reset_loop_index))
 
-    for step in xrange(num_training_loops):
+    for step in range(num_training_loops):
         # 1.) Generate the dictionary of I/O placeholder data
         start_index = step * unroll_depth
-        in_data = np.array([palindrome(x) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
-        out_data = np.array([palindrome(x+1) for x in xrange(start_index, start_index + unroll_depth)], dtype=np.float32)
+        in_data = np.array([palindrome(x) for x in range(start_index, start_index + unroll_depth)], dtype=np.float32)
+        out_data = np.array([palindrome(x+1) for x in range(start_index, start_index + unroll_depth)], dtype=np.float32)
 
         # 2a.) Generate the working state to send in, along with data to insert into unrolled placeholders
         frame_dict = bp.generate_feed_dict(bp.DEEP, [in_data, out_data], 2)
@@ -173,7 +173,7 @@ for reset_loop_index in xrange(max_reset_loops):
 
         # 6.) Show training progress; reset graph if loss is stagnant.
         if (step % 100) == 0:
-            print "Loss: %s => %s (output: %s)" % (step, results[1], [str(x) for x in results[2:-len(state_vars)]])
+            print("Loss: %s => %s (output: %s)" % (step, results[1], [str(x) for x in results[2:-len(state_vars)]]))
             sys.stdout.flush()
 
             if step >= 1000 and (results[1] > 0.01):
@@ -191,7 +191,7 @@ bp.copy_state_forward()
 [in_ph, out_ph, out_out] = graphs[bp.SHALLOW][0]
 
 # Evaluate one step at a time, and burn in first.
-for step in xrange(num_inference_loops + num_inference_warmup_loops):
+for step in range(num_inference_loops + num_inference_warmup_loops):
     # 1.) Convert step to the palindromic sequence (current and look-ahead-by-one)
     in_value = palindrome(step)
     expected_out_value = palindrome(step+1)
